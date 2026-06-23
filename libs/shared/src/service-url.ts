@@ -1,3 +1,5 @@
+import { URL } from "node:url";
+
 export interface ResolveServiceUrlInput {
   /** Full URL, e.g. http://localhost:3001 */
   url?: string;
