@@ -14,14 +14,18 @@ export async function refreshConnectPanel(
     return { ok: false, error: "Discord bot is not ready yet" };
   }
 
-  const { data: settings } = await db
+  const { data: settings, error } = await db
     .from("connect_panel_settings")
     .select("*")
     .eq("id", "main")
-    .single();
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   if (!settings) {
-    return { ok: false, error: "Connect panel settings not found" };
+    return { ok: false, error: "Connect panel settings not found — seed connect_panel_settings main row" };
   }
 
   if (!settings.discord_channel_id) {

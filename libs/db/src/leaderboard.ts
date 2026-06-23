@@ -37,9 +37,23 @@ export async function fetchLeaderboardTopUsers(
 }
 
 export async function getLeaderboardSettings(db: DbClient): Promise<LeaderboardSettings> {
-  const { data, error } = await db.from("leaderboard_settings").select("*").eq("id", "main").single();
-  if (error || !data) {
-    throw new Error(error?.message ?? "Leaderboard settings not found");
+  const { data, error } = await db
+    .from("leaderboard_settings")
+    .select("*")
+    .eq("id", "main")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (data) return data;
+
+  const { data: created, error: insertError } = await db
+    .from("leaderboard_settings")
+    .insert({ id: "main" })
+    .select("*")
+    .single();
+
+  if (insertError || !created) {
+    throw new Error(insertError?.message ?? "Leaderboard settings not found");
   }
-  return data;
+  return created;
 }

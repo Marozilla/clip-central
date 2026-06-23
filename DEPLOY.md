@@ -151,9 +151,9 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 | `DISCORD_GUILD_ID` | Your Discord server ID |
 | `DISCORD_CAMPAIGN_CHANNEL_ID` | Default campaign channel (optional) |
 | `DISCORD_BOT_PRIVATE_HOST` | Reference → `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
-| `DISCORD_BOT_PRIVATE_PORT` | Reference → `discord-bot` → `PORT` |
+| `DISCORD_BOT_PRIVATE_PORT` | `8080` (must match `PORT` on discord-bot) |
 | `VIDEOS_WORKER_PRIVATE_HOST` | Reference → `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
-| `VIDEOS_WORKER_PRIVATE_PORT` | Reference → `videos-worker` → `PORT` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | `8080` (must match `PORT` on videos-worker) |
 
 ### discord-bot only
 
@@ -162,49 +162,86 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 | `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
 | `DISCORD_GUILD_ID` | Your Discord server ID |
 | `VIDEOS_WORKER_PRIVATE_HOST` | Reference → `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
-| `VIDEOS_WORKER_PRIVATE_PORT` | Reference → `videos-worker` → `PORT` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | `8080` (must match `PORT` on videos-worker) |
 | `QUEUE_POLL_INTERVAL_MS` | `3000` |
 
-`BOT_HTTP_PORT` is optional — the bot falls back to Railway's injected `PORT`.
+On **discord-bot**, set `PORT=8080` (plain text). Do **not** set `BOT_HTTP_PORT=3001` — that overrides Railway's port and breaks admin → bot calls (admin uses `DISCORD_BOT_PRIVATE_PORT=8080`).
+
+`BOT_HTTP_PORT` is optional — when unset, the bot uses Railway's injected `PORT`.
 
 ### videos-worker only
 
 | Variable | Value |
 |----------|-------|
-| `REDIS_URL` | `${{Redis.REDIS_URL}}` (Railway reference to your Redis service) |
 | `SCRAPECREATORS_API_KEY` | Your Scrape Creators API key |
 | `DISCORD_BOT_PRIVATE_HOST` | Reference → `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
-| `DISCORD_BOT_PRIVATE_PORT` | Reference → `discord-bot` → `PORT` |
+| `DISCORD_BOT_PRIVATE_PORT` | `8080` (must match `PORT` on discord-bot) |
 | `REFRESH_INTERVAL_HOURS` | `2` (or `6`) |
 | `REQUEST_DELAY_MS` | `200` |
+| `PORT` | `8080` |
 
-`PORT` is set automatically by Railway for the worker HTTP server.
+#### Redis on videos-worker
+
+Railway's Redis plugin stores `REDIS_URL` as a **nested template** (`redis://${{REDISUSER}}:...`). Referencing `${{Redis.REDIS_URL}}` from another service often fails → worker falls back to `localhost:6379`.
+
+**Recommended:** delete `REDIS_URL` on videos-worker and set:
+
+| Variable | Value |
+|----------|-------|
+| `REDIS_PRIVATE_HOST` | Reference → **Redis** → `RAILWAY_PRIVATE_DOMAIN` |
+| `REDIS_PASSWORD` | Reference → **Redis** → `REDIS_PASSWORD` |
+| `REDISPORT` | `6379` (plain text) |
+| `REDISUSER` | `default` (plain text) |
+
+**Alternative:** on the Redis service, open Variables, copy the **fully resolved** private `REDIS_URL` string and paste it as plain `REDIS_URL` on videos-worker (no `${{...}}`).
+
+For **local dev** against Railway Redis, use `REDIS_PUBLIC_URL` from Redis → Connect → Public URL.
 
 ### Internal service URLs (private network)
 
-**Rename your Railway services** to `admin`, `discord-bot`, and `videos-worker` so variable references match.
+**Rename your Railway services** on the project canvas to exactly: `admin`, `discord-bot`, `videos-worker`.
 
-**Do not paste** `http://${{discord-bot.RAILWAY_PRIVATE_DOMAIN}}:${{discord-bot.PORT}}` as plain text — Railway often leaves it unexpanded and the worker will crash with `Invalid url`.
+#### If you see `http://:` in crash logs
 
-Instead, use **two separate variable references** per target service:
+That means a composite URL like `http://${{discord-bot.RAILWAY_PRIVATE_DOMAIN}}:${{discord-bot.PORT}}` was typed as **plain text**. Railway strips the references and leaves `http://:`.
+
+**Fix (do this on every service + Shared Variables):**
+
+1. **Delete** `BOT_INTERNAL_URL` and `WORKER_URL` entirely (including from **Shared Variables** if set there).
+2. Add the host/port variables below using **Variables → New Variable → Reference** (pick service, then variable — do **not** type `${{` yourself).
 
 #### On `admin` and `videos-worker` (reach the Discord bot)
 
-| Variable | How to set in Railway |
-|----------|------------------------|
-| `DISCORD_BOT_PRIVATE_HOST` | Variables → **Add Reference** → service `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
-| `DISCORD_BOT_PRIVATE_PORT` | Variables → **Add Reference** → service `discord-bot` → `PORT` |
+| Variable | Value |
+|----------|-------|
+| `DISCORD_BOT_PRIVATE_HOST` | Reference → service **discord-bot** → `RAILWAY_PRIVATE_DOMAIN` |
+| `DISCORD_BOT_PRIVATE_PORT` | Reference → service **discord-bot** → `PORT` **or** plain `8080` (see below) |
 
-Leave `BOT_INTERNAL_URL` **unset** on Railway (local dev still uses `BOT_INTERNAL_URL=http://localhost:3001`).
+Do **not** set `BOT_INTERNAL_URL` on Railway.
 
 #### On `admin` and `discord-bot` (reach the videos worker)
 
-| Variable | How to set in Railway |
-|----------|------------------------|
-| `VIDEOS_WORKER_PRIVATE_HOST` | Variables → **Add Reference** → service `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
-| `VIDEOS_WORKER_PRIVATE_PORT` | Variables → **Add Reference** → service `videos-worker` → `PORT` |
+| Variable | Value |
+|----------|-------|
+| `VIDEOS_WORKER_PRIVATE_HOST` | Reference → service **videos-worker** → `RAILWAY_PRIVATE_DOMAIN` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | Reference → service **videos-worker** → `PORT` **or** plain `8080` (see below) |
 
-Leave `WORKER_URL` **unset** on Railway (local dev still uses `WORKER_URL=http://localhost:3002`).
+Do **not** set `WORKER_URL` on Railway.
+
+#### Railway `PORT` is not auto-referenceable
+
+Railway injects `PORT` at **runtime**, but it does **not** appear in the variable reference picker. That is why `${{discord-bot.PORT}}` resolves empty and you get `http://:`.
+
+**Fix:** on each **target** service, add an explicit service variable (plain text, not a reference):
+
+| Service | Add this variable |
+|---------|-------------------|
+| **discord-bot** | `PORT` = `8080` |
+| **videos-worker** | `PORT` = `8080` |
+
+Both apps already listen on `process.env.PORT`, so they will bind to 8080. Other services can then reference `${{discord-bot.PORT}}` / `${{videos-worker.PORT}}`, **or** you can skip the reference and set `DISCORD_BOT_PRIVATE_PORT=8080` / `VIDEOS_WORKER_PRIVATE_PORT=8080` as plain text on the calling services.
+
+After saving, redeploy **discord-bot** and **videos-worker** first, then redeploy services that call them.
 
 > **Local dev:** keep `BOT_INTERNAL_URL=http://localhost:3001` and `WORKER_URL=http://localhost:3002`. For Redis on Railway from your machine, set `REDIS_PUBLIC_URL` (not `REDIS_URL`) in `.env`.
 
@@ -252,10 +289,10 @@ No extra Railway setup needed for Postgres.
 
 | Symptom | Fix |
 |---------|-----|
-| Worker crash: `Invalid url` on `BOT_INTERNAL_URL` | Delete `BOT_INTERNAL_URL` if it contains `${{...}}`. Set `DISCORD_BOT_PRIVATE_HOST` + `DISCORD_BOT_PRIVATE_PORT` as separate Railway references instead. |
+| Worker crash: `Invalid url` / `http://:` | Delete `BOT_INTERNAL_URL` / `WORKER_URL`. Set host as a Reference; set port to plain `8080` after adding `PORT=8080` on target services. |
 | Bot build still runs `pnpm --filter ... build` | Change **Build Command** to `pnpm run railway:build:bot` and redeploy after pushing latest code. |
 | Admin "Could not reach Discord bot" | Check `DISCORD_BOT_PRIVATE_HOST` / `PORT` references. Bot service must be running. |
-| Worker Redis errors | On Railway, `REDIS_URL` must be the Redis plugin reference, not `localhost`. |
+| Worker Redis errors / `127.0.0.1:6379` | Do not use `${{Redis.REDIS_URL}}` — it is a nested template. Use `REDIS_PRIVATE_HOST` + `REDIS_PASSWORD` references, or paste the resolved Redis URL. |
 | NextAuth sign-in fails | `NEXTAUTH_URL` must exactly match the public admin URL. Discord redirect URI must match too. |
 | Bot exits on startup | `BOT_INTERNAL_KEY` / `WORKER_API_KEY` must be **16+ characters**. |
 | Build fails: `Cannot find module '@clip-central/...'` | (1) **Root Directory** must be repo root, not `apps/*`. (2) Build command must be `pnpm run railway:build:worker` (etc.), **not** `pnpm --filter ... build` alone. (3) Push latest code with `scripts/railway/build.sh`. |

@@ -8,7 +8,10 @@ export const botEnvSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   BOT_INTERNAL_KEY: z.string().min(16),
-  BOT_HTTP_PORT: z.coerce.number().default(3001),
+  BOT_HTTP_PORT: z.preprocess(
+    (val) => (val === undefined || val === "" ? undefined : val),
+    z.coerce.number().optional(),
+  ),
   WORKER_URL: z.string().optional(),
   VIDEOS_WORKER_PRIVATE_HOST: z.string().optional(),
   VIDEOS_WORKER_PRIVATE_PORT: z.coerce.number().optional(),
@@ -42,6 +45,6 @@ export function loadBotEnv(): BotEnv {
     process.exit(1);
   }
 
-  const port = parsed.data.BOT_HTTP_PORT || Number(process.env.PORT) || 3001;
+  const port = parsed.data.BOT_HTTP_PORT ?? Number(process.env.PORT) || 3001;
   return { ...parsed.data, BOT_HTTP_PORT: port, WORKER_URL: workerUrl };
 }
