@@ -37,10 +37,12 @@ function resolveRedisUrl(opts: {
   }
 
   if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) {
+    if (rawUrl) {
+      throw new Error(`REDIS_URL is set but invalid: "${rawUrl}"`);
+    }
     throw new Error(
-      "Redis is not configured on Railway. Delete REDIS_URL if it uses ${{Redis.REDIS_URL}} " +
-        "(nested templates often fail). Set REDIS_PRIVATE_HOST + REDIS_PASSWORD as references " +
-        "to the Redis service, plus REDISPORT=6379 and REDISUSER=default. See DEPLOY.md.",
+      "Redis is not configured on Railway. Set REDIS_URL to the resolved private URL from the Redis service, " +
+        "or set REDIS_PRIVATE_HOST + REDIS_PASSWORD references. See DEPLOY.md.",
     );
   }
 
@@ -48,13 +50,12 @@ function resolveRedisUrl(opts: {
 }
 
 function isUsableRedisUrl(url: string): boolean {
-  if (/^redis:\/\/:?@?/i.test(url)) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "redis:" && Boolean(parsed.hostname);
-  } catch {
-    return false;
-  }
+  const trimmed = url.trim();
+  if (trimmed.includes(RAILWAY_TEMPLATE_MARKER)) return false;
+  if (/^redis:\/\/:?@?/i.test(trimmed)) return false;
+  // Node's URL() does not reliably parse redis:// — match host manually.
+  const match = trimmed.match(/^redis:\/\/(?:[^:@/]+(?::[^@/]*)?@)?([^:/\s?#]+)(?::(\d+))?/i);
+  return Boolean(match?.[1]);
 }
 
 export const workerEnvSchema = z.object({
@@ -118,7 +119,8 @@ export function loadWorkerEnv(): WorkerEnv {
     });
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
-    console.error("REDIS_URL raw:", process.env.REDIS_URL ?? "(unset)");
+    const raw = process.env.REDIS_URL ?? "(unset)";
+    console.error("REDIS_URL raw:", raw.replace(/:([^:@/]+)@/, ":***@"));
     console.error("REDIS_PRIVATE_HOST raw:", process.env.REDIS_PRIVATE_HOST ?? "(unset)");
     process.exit(1);
   }
