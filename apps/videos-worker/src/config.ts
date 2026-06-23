@@ -3,6 +3,17 @@ import { z } from "zod";
 
 const RAILWAY_TEMPLATE_MARKER = "$" + "{{";
 
+function stripEnvQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 function resolveRedisUrl(opts: {
   url?: string;
   publicUrl?: string;
@@ -11,12 +22,12 @@ function resolveRedisUrl(opts: {
   password?: string;
   user?: string;
 }): string {
-  const publicUrl = opts.publicUrl?.trim();
+  const publicUrl = opts.publicUrl ? stripEnvQuotes(opts.publicUrl) : undefined;
   if (publicUrl && !publicUrl.includes(RAILWAY_TEMPLATE_MARKER)) {
     return publicUrl;
   }
 
-  const rawUrl = opts.url?.trim();
+  const rawUrl = opts.url ? stripEnvQuotes(opts.url) : undefined;
   if (rawUrl && !rawUrl.includes(RAILWAY_TEMPLATE_MARKER) && isUsableRedisUrl(rawUrl)) {
     return rawUrl;
   }
@@ -50,10 +61,10 @@ function resolveRedisUrl(opts: {
 }
 
 function isUsableRedisUrl(url: string): boolean {
-  const trimmed = url.trim();
+  const trimmed = stripEnvQuotes(url);
   if (trimmed.includes(RAILWAY_TEMPLATE_MARKER)) return false;
-  if (/^redis:\/\/:?@?/i.test(trimmed)) return false;
-  // Node's URL() does not reliably parse redis:// — match host manually.
+  // Reject empty host forms like redis://, redis://:, redis://:@
+  if (/^redis:\/\/(?:$|:|@|:@)/i.test(trimmed)) return false;
   const match = trimmed.match(/^redis:\/\/(?:[^:@/]+(?::[^@/]*)?@)?([^:/\s?#]+)(?::(\d+))?/i);
   return Boolean(match?.[1]);
 }
