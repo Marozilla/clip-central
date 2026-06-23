@@ -82,27 +82,41 @@ Replace `YOUR_USERNAME` with your GitHub handle.
 
 ## Step 4 — Create the three app services
 
-Delete or repurpose the auto-created service. You want **three separate services** from the **same GitHub repo**:
+Delete or repurpose the auto-created service. You want **three separate services** from the **same GitHub repo**.
+
+### Critical: repo root, not app subdirectory
+
+For **every** service, open **Settings → Root Directory** and leave it **empty** (repo root).  
+If you set it to `apps/admin` or similar, `libs/` is missing from the deploy and builds will always fail with `Cannot find module '@clip-central/...'`.
+
+### Build & start commands
 
 | Service name | Build command | Start command |
 |--------------|---------------|---------------|
-| `admin` | `pnpm --filter @clip-central/admin build` | `pnpm --filter @clip-central/admin start` |
-| `discord-bot` | `pnpm --filter @clip-central/discord-bot build` | `pnpm --filter @clip-central/discord-bot start` |
-| `videos-worker` | `pnpm --filter @clip-central/videos-worker build` | `pnpm --filter @clip-central/videos-worker start` |
+| `admin` | `pnpm run railway:build:admin` | `pnpm --filter @clip-central/admin start` |
+| `discord-bot` | `pnpm run railway:build:bot` | `pnpm --filter @clip-central/discord-bot start` |
+| `videos-worker` | `pnpm run railway:build:worker` | `pnpm --filter @clip-central/videos-worker start` |
 
-Each app's `build` script compiles workspace libs (`@clip-central/db`, `shared`, etc.) before the app itself. **Do not** set the service root directory to `apps/admin` — keep the repo root so pnpm can see the workspace.
+Equivalent build commands (same effect):
 
-Alternative build commands (equivalent): `pnpm run build:admin`, `pnpm run build:bot`, `pnpm run build:worker`.
+```bash
+bash scripts/railway/build.sh admin
+bash scripts/railway/build.sh bot
+bash scripts/railway/build.sh worker
+```
+
+**Do not use** `pnpm --filter @clip-central/videos-worker build` alone — that skips compiling `libs/` first.
 
 For each service:
 
 1. **+ New** → **GitHub Repo** → `clip-central` (same repo).
-2. **Settings** → set the **Build Command** and **Start Command** from the table above.
-3. **Settings** → **Networking**:
+2. **Settings** → confirm **Root Directory** is empty.
+3. **Settings** → set **Build Command** and **Start Command** from the table above.
+4. **Settings** → **Networking**:
    - **admin**: enable **Generate Domain** (public HTTPS URL).
    - **discord-bot** and **videos-worker**: leave public networking **off** (internal only).
 
-Railway/Nixpacks will detect Node from `package.json`. With `packageManager` set, Corepack installs pnpm automatically.
+Railway uses `nixpacks.toml` at the repo root for `pnpm install`. With `packageManager` in `package.json`, Corepack pins pnpm 9.
 
 Optional: under **Settings → Watch Paths**, limit redeploys:
 
@@ -223,8 +237,7 @@ No extra Railway setup needed for Postgres.
 | Worker Redis errors | On Railway, `REDIS_URL` must be the Redis plugin reference, not `localhost`. |
 | NextAuth sign-in fails | `NEXTAUTH_URL` must exactly match the public admin URL. Discord redirect URI must match too. |
 | Bot exits on startup | `BOT_INTERNAL_KEY` / `WORKER_API_KEY` must be **16+ characters**. |
-| Build fails: `Cannot find module '@clip-central/...'` | Workspace libs were not built. Use the build commands above from the **repo root**, not `tsc` / `next build` inside `apps/*` alone. Redeploy after pulling the latest commit. |
-| Build fails on libs | Ensure build command is `pnpm --filter @clip-central/<service> build` from repo root, not `next build` alone. |
+| Build fails: `Cannot find module '@clip-central/...'` | (1) **Root Directory** must be repo root, not `apps/*`. (2) Build command must be `pnpm run railway:build:worker` (etc.), **not** `pnpm --filter ... build` alone. (3) Push latest code with `scripts/railway/build.sh`. |
 | pnpm not found | Confirm root `package.json` has `"packageManager": "pnpm@9.x"`. |
 
 ---

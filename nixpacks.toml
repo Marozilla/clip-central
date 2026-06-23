@@ -1,0 +1,10 @@
+# Railway/Nixpacks — monorepo root install (build command set per service in Railway UI)
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm-9_x"]
+
+[phases.install]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@9.15.4 --activate",
+  "pnpm install --frozen-lockfile",
+]
