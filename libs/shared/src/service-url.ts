@@ -1,0 +1,53 @@
+export interface ResolveServiceUrlInput {
+  /** Full URL, e.g. http://localhost:3001 */
+  url?: string;
+  /** Private hostname, e.g. discord-bot.railway.internal */
+  host?: string;
+  port?: string | number;
+  defaultUrl: string;
+  name: string;
+}
+
+/**
+ * Resolve an internal service URL from either a full URL or host+port pair.
+ * Railway: add DISCORD_BOT_PRIVATE_HOST / PORT as separate variable references
+ * instead of pasting `http://${{...}}:${{...}}` as one string.
+ */
+export function resolveServiceUrl(input: ResolveServiceUrlInput): string {
+  const rawUrl = input.url?.trim();
+
+  if (rawUrl) {
+    if (rawUrl.includes("${{")) {
+      throw new Error(
+        `${input.name} contains "${{...}}" — Railway did not expand it. ` +
+          `Delete ${input.name} and use separate host + port variables instead (see DEPLOY.md).`,
+      );
+    }
+    try {
+      const parsed = new URL(rawUrl);
+      return parsed.toString().replace(/\/$/, "");
+    } catch {
+      throw new Error(`${input.name} is not a valid URL: "${rawUrl}"`);
+    }
+  }
+
+  const host = input.host?.trim();
+  const port =
+    input.port !== undefined && input.port !== "" ? String(input.port).trim() : "";
+
+  if (host || port) {
+    if (!host || !port) {
+      throw new Error(
+        `${input.name}: set both host and port, or neither. Got host="${host ?? ""}" port="${port}"`,
+      );
+    }
+    if (host.includes("${{") || port.includes("${{")) {
+      throw new Error(
+        `${input.name} host/port contains unexpanded Railway template. Use Variables → Add Reference for each field.`,
+      );
+    }
+    return `http://${host}:${port}`;
+  }
+
+  return input.defaultUrl;
+}

@@ -150,8 +150,10 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 | `ADMIN_DISCORD_IDS` | Your Discord user ID (comma-separated for multiple) |
 | `DISCORD_GUILD_ID` | Your Discord server ID |
 | `DISCORD_CAMPAIGN_CHANNEL_ID` | Default campaign channel (optional) |
-| `BOT_INTERNAL_URL` | See below |
-| `WORKER_URL` | See below |
+| `DISCORD_BOT_PRIVATE_HOST` | Reference → `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
+| `DISCORD_BOT_PRIVATE_PORT` | Reference → `discord-bot` → `PORT` |
+| `VIDEOS_WORKER_PRIVATE_HOST` | Reference → `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | Reference → `videos-worker` → `PORT` |
 
 ### discord-bot only
 
@@ -159,7 +161,8 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 |----------|-------|
 | `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
 | `DISCORD_GUILD_ID` | Your Discord server ID |
-| `WORKER_URL` | See below |
+| `VIDEOS_WORKER_PRIVATE_HOST` | Reference → `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | Reference → `videos-worker` → `PORT` |
 | `QUEUE_POLL_INTERVAL_MS` | `3000` |
 
 `BOT_HTTP_PORT` is optional — the bot falls back to Railway's injected `PORT`.
@@ -170,7 +173,8 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 |----------|-------|
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` (Railway reference to your Redis service) |
 | `SCRAPECREATORS_API_KEY` | Your Scrape Creators API key |
-| `BOT_INTERNAL_URL` | See below |
+| `DISCORD_BOT_PRIVATE_HOST` | Reference → `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
+| `DISCORD_BOT_PRIVATE_PORT` | Reference → `discord-bot` → `PORT` |
 | `REFRESH_INTERVAL_HOURS` | `2` (or `6`) |
 | `REQUEST_DELAY_MS` | `200` |
 
@@ -178,14 +182,29 @@ Set these in each Railway service (**Variables** tab). Use **Shared Variables** 
 
 ### Internal service URLs (private network)
 
-After all services are deployed, wire them using Railway **service references** (replace service names if yours differ):
+**Rename your Railway services** to `admin`, `discord-bot`, and `videos-worker` so variable references match.
 
-| Variable | Set on | Example value |
-|----------|--------|---------------|
-| `BOT_INTERNAL_URL` | admin, videos-worker | `http://${{discord-bot.RAILWAY_PRIVATE_DOMAIN}}:${{discord-bot.PORT}}` |
-| `WORKER_URL` | admin, discord-bot | `http://${{videos-worker.RAILWAY_PRIVATE_DOMAIN}}:${{videos-worker.PORT}}` |
+**Do not paste** `http://${{discord-bot.RAILWAY_PRIVATE_DOMAIN}}:${{discord-bot.PORT}}` as plain text — Railway often leaves it unexpanded and the worker will crash with `Invalid url`.
 
-In the Railway UI: **Variables → Add Reference** → pick the target service → choose `RAILWAY_PRIVATE_DOMAIN` and `PORT`.
+Instead, use **two separate variable references** per target service:
+
+#### On `admin` and `videos-worker` (reach the Discord bot)
+
+| Variable | How to set in Railway |
+|----------|------------------------|
+| `DISCORD_BOT_PRIVATE_HOST` | Variables → **Add Reference** → service `discord-bot` → `RAILWAY_PRIVATE_DOMAIN` |
+| `DISCORD_BOT_PRIVATE_PORT` | Variables → **Add Reference** → service `discord-bot` → `PORT` |
+
+Leave `BOT_INTERNAL_URL` **unset** on Railway (local dev still uses `BOT_INTERNAL_URL=http://localhost:3001`).
+
+#### On `admin` and `discord-bot` (reach the videos worker)
+
+| Variable | How to set in Railway |
+|----------|------------------------|
+| `VIDEOS_WORKER_PRIVATE_HOST` | Variables → **Add Reference** → service `videos-worker` → `RAILWAY_PRIVATE_DOMAIN` |
+| `VIDEOS_WORKER_PRIVATE_PORT` | Variables → **Add Reference** → service `videos-worker` → `PORT` |
+
+Leave `WORKER_URL` **unset** on Railway (local dev still uses `WORKER_URL=http://localhost:3002`).
 
 > **Local dev:** keep `BOT_INTERNAL_URL=http://localhost:3001` and `WORKER_URL=http://localhost:3002`. For Redis on Railway from your machine, set `REDIS_PUBLIC_URL` (not `REDIS_URL`) in `.env`.
 
@@ -233,7 +252,9 @@ No extra Railway setup needed for Postgres.
 
 | Symptom | Fix |
 |---------|-----|
-| Admin "Could not reach Discord bot" | Check `BOT_INTERNAL_URL` uses private domain + correct `PORT`. Bot service must be running. |
+| Worker crash: `Invalid url` on `BOT_INTERNAL_URL` | Delete `BOT_INTERNAL_URL` if it contains `${{...}}`. Set `DISCORD_BOT_PRIVATE_HOST` + `DISCORD_BOT_PRIVATE_PORT` as separate Railway references instead. |
+| Bot build still runs `pnpm --filter ... build` | Change **Build Command** to `pnpm run railway:build:bot` and redeploy after pushing latest code. |
+| Admin "Could not reach Discord bot" | Check `DISCORD_BOT_PRIVATE_HOST` / `PORT` references. Bot service must be running. |
 | Worker Redis errors | On Railway, `REDIS_URL` must be the Redis plugin reference, not `localhost`. |
 | NextAuth sign-in fails | `NEXTAUTH_URL` must exactly match the public admin URL. Discord redirect URI must match too. |
 | Bot exits on startup | `BOT_INTERNAL_KEY` / `WORKER_API_KEY` must be **16+ characters**. |

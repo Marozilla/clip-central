@@ -162,3 +162,5 @@ export function formatCurrency(amount: number): string {
 export function formatNumber(n: number): string {
   return new Intl.NumberFormat("en-US").format(n);
 }
+
+export { resolveServiceUrl, type ResolveServiceUrlInput } from "./service-url.js";
