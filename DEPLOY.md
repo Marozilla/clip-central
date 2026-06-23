@@ -86,9 +86,13 @@ Delete or repurpose the auto-created service. You want **three separate services
 
 | Service name | Build command | Start command |
 |--------------|---------------|---------------|
-| `admin` | `pnpm run build:admin` | `pnpm --filter @clip-central/admin start` |
-| `discord-bot` | `pnpm run build:bot` | `pnpm --filter @clip-central/discord-bot start` |
-| `videos-worker` | `pnpm run build:worker` | `pnpm --filter @clip-central/videos-worker start` |
+| `admin` | `pnpm --filter @clip-central/admin build` | `pnpm --filter @clip-central/admin start` |
+| `discord-bot` | `pnpm --filter @clip-central/discord-bot build` | `pnpm --filter @clip-central/discord-bot start` |
+| `videos-worker` | `pnpm --filter @clip-central/videos-worker build` | `pnpm --filter @clip-central/videos-worker start` |
+
+Each app's `build` script compiles workspace libs (`@clip-central/db`, `shared`, etc.) before the app itself. **Do not** set the service root directory to `apps/admin` — keep the repo root so pnpm can see the workspace.
+
+Alternative build commands (equivalent): `pnpm run build:admin`, `pnpm run build:bot`, `pnpm run build:worker`.
 
 For each service:
 
@@ -219,7 +223,8 @@ No extra Railway setup needed for Postgres.
 | Worker Redis errors | On Railway, `REDIS_URL` must be the Redis plugin reference, not `localhost`. |
 | NextAuth sign-in fails | `NEXTAUTH_URL` must exactly match the public admin URL. Discord redirect URI must match too. |
 | Bot exits on startup | `BOT_INTERNAL_KEY` / `WORKER_API_KEY` must be **16+ characters**. |
-| Build fails on libs | Ensure build command is `pnpm run build:admin` (etc.), not `next build` alone. |
+| Build fails: `Cannot find module '@clip-central/...'` | Workspace libs were not built. Use the build commands above from the **repo root**, not `tsc` / `next build` inside `apps/*` alone. Redeploy after pulling the latest commit. |
+| Build fails on libs | Ensure build command is `pnpm --filter @clip-central/<service> build` from repo root, not `next build` alone. |
 | pnpm not found | Confirm root `package.json` has `"packageManager": "pnpm@9.x"`. |
 
 ---
