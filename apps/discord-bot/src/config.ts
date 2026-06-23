@@ -45,6 +45,6 @@ export function loadBotEnv(): BotEnv {
     process.exit(1);
   }
 
-  const port = parsed.data.BOT_HTTP_PORT ?? Number(process.env.PORT) || 3001;
+  const port = parsed.data.BOT_HTTP_PORT ?? (Number(process.env.PORT) || 3001);
   return { ...parsed.data, BOT_HTTP_PORT: port, WORKER_URL: workerUrl };
 }
