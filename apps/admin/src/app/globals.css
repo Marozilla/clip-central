@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-cc-black text-cc-white antialiased;
+    background-image: radial-gradient(ellipse 80% 50% at 20% -10%, rgba(43, 120, 228, 0.18), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(55, 193, 54, 0.08), transparent 45%),
+      radial-gradient(ellipse 50% 30% at 50% 100%, rgba(239, 121, 15, 0.06), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-cc-blue/40 text-white;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl;
+  }
+
+  .glass-strong {
+    @apply border border-white/[0.1] bg-cc-elevated/80 backdrop-blur-xl;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/30 transition-all duration-200;
+    @apply focus:border-cc-blue/50 focus:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-cc-blue/20;
+  }
+
+  .table-row-hover {
+    @apply transition-colors duration-150 hover:bg-white/[0.03];
+  }
+
+  .dot-accent {
+    @apply h-1 w-full rounded-full bg-dot-bar opacity-80;
+  }
+}

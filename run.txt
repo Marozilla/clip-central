@@ -1,0 +1,37 @@
+# Clip Central — local run checklist
+
+## 1. Fix these two lines in .env (must be 16+ characters)
+BOT_INTERNAL_KEY=<any long random string, 16+ chars>
+WORKER_API_KEY=<any long random string, 16+ chars>
+
+PowerShell to generate one:
+  [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+
+## 2. Redis (required for view refresh worker)
+Option A — Docker Desktop, then:  docker compose up -d
+Option B — Cloud free tier: https://upstash.com → create Redis → paste REDIS_URL in .env
+
+## 3. Discord Developer Portal (one-time)
+- OAuth2 → Redirects: http://localhost:3000/api/auth/callback/discord
+- Bot → enable Message Content Intent if needed
+- Invite bot to your server (Send Messages, Embed Links, Use Slash Commands)
+
+## 4. Start all three services (3 terminals from repo root)
+npx pnpm@9.15.0 dev:bot
+npx pnpm@9.15.0 dev:worker
+npx pnpm@9.15.0 dev:admin
+
+## 5. First-time Discord setup
+In your server:  /setup-connect   (posts account linking panel)
+
+## 6. Admin
+http://localhost:3000 → Sign in with Discord
+Campaigns → New Campaign → pick channel → Create & Post to Discord
+
+## 7. Security
+You pasted live secrets in chat. Rotate immediately:
+- Discord bot token (Developer Portal → Bot → Reset Token)
+- Discord client secret (OAuth2 → Reset Secret)
+- Supabase service role key (Dashboard → Settings → API)
+- Scrape Creators API key
+- NEXTAUTH_SECRET (generate new, everyone re-logs-in)
