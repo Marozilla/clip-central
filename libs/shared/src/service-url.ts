@@ -11,7 +11,7 @@ export interface ResolveServiceUrlInput {
 /**
  * Resolve an internal service URL from either a full URL or host+port pair.
  * Railway: add DISCORD_BOT_PRIVATE_HOST / PORT as separate variable references
- * instead of pasting `http://${{...}}:${{...}}` as one string.
+ * instead of pasting a composite Railway reference string as one URL value.
  */
 export function resolveServiceUrl(input: ResolveServiceUrlInput): string {
   const rawUrl = input.url?.trim();
@@ -19,7 +19,7 @@ export function resolveServiceUrl(input: ResolveServiceUrlInput): string {
   if (rawUrl) {
     if (rawUrl.includes("${{")) {
       throw new Error(
-        `${input.name} contains "${{...}}" — Railway did not expand it. ` +
+        `${input.name} contains an unexpanded Railway template (\${{...}}). ` +
           `Delete ${input.name} and use separate host + port variables instead (see DEPLOY.md).`,
       );
     }
